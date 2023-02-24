@@ -1,69 +1,82 @@
 ﻿using System;
+using System.Collections.Generic;
 
-class Program
+class RPNCalculator
 {
-    static void Main(string[] args)
+    static bool IsOperator(string token)
     {
-        // Зчитати вхідний рядок з консолі
-        Console.Write("Введіть вираз: ");
+        return (token == "+" || token == "-" || token == "*" || token == "/" || token == "^");
+    }
+
+    static int GetPrecedence(string token)
+    {
+        switch (token)
+        {
+            case "+":
+            case "-":
+                return 1;
+            case "*":
+            case "/":
+                return 2;
+            case "^":
+                return 3;
+            default:
+                return 0;
+        }
+    }
+
+    static void Main()
+    {
+        Console.WriteLine("Enter an expression: ");
         string input = Console.ReadLine();
+        string[] tokens = input.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
 
-        // Переведення в PRN
-        string[] output = new string[input.Length];
+        string[] output = new string[tokens.Length];
         int outputIndex = 0;
-        string[] operators = new string[input.Length];
-        int operatorIndex = 0;
-        string buffer = "";
+        string[] stack = new string[tokens.Length];
+        int stackIndex = 0;
 
-        // Цикл по всім символам рядка
-        foreach (char c in input)
+        foreach (string token in tokens)
         {
-            if (char.IsDigit(c))
+            if (IsOperator(token))
             {
-                // Якщо символ - цифра, додаємо його до буфера
-                buffer += c;
-            }
-            else if (c == ' ')
-            {
-                // Якщо символ - пробіл, перевіряємо, чи був попередній символ число
-                if (buffer != "")
+                while (stackIndex > 0 && IsOperator(stack[stackIndex - 1]) && GetPrecedence(stack[stackIndex - 1]) >= GetPrecedence(token))
                 {
-                    output[outputIndex++] = buffer;
-                    buffer = "";
+                    output[outputIndex++] = stack[--stackIndex];
+                }
+                stack[stackIndex++] = token;
+            }
+            else if (token == "(")
+            {
+                stack[stackIndex++] = token;
+            }
+            else if (token == ")")
+            {
+                while (stackIndex > 0 && stack[stackIndex - 1] != "(")
+                {
+                    output[outputIndex++] = stack[--stackIndex];
+                }
+                if (stackIndex > 0 && stack[stackIndex - 1] == "(")
+                {
+                    stackIndex--; // remove the "("
                 }
             }
-            else if (c == '+' || c == '-' || c == '*' || c == '/')
+            else // number
             {
-                // Якщо символ - оператор, перевіряємо, чи був попередній символ число
-                if (buffer != "")
-                {
-                    output[outputIndex++] = buffer;
-                    buffer = "";
-                }
-
-                // Додаємо оператор до стеку
-                operators[operatorIndex++] = c.ToString();
-            }
-            else
-            {
-                // Якщо символ невідомий, видаємо повідомлення про помилку
-                Console.WriteLine($"Невідомий символ: {c}");
-                return;
+                output[outputIndex++] = token;
             }
         }
 
-        if (buffer != "")
+        while (stackIndex > 0)
         {
-            output[outputIndex++] = buffer;
+            output[outputIndex++] = stack[--stackIndex];
         }
 
-        // Витягуємо залишки операторів зі стеку та додаємо їх до вихідної черги
-        while (operatorIndex > 0)
-        {
-            output[outputIndex++] = operators[--operatorIndex];
-        }
+        Array.Resize(ref output, outputIndex);
 
-        // Обчислення значення виразу з токенів в інверсній польській нотації
+        Console.WriteLine("RPN: " + string.Join(" ", output));
+        
+            // Обчислення значення виразу з токенів в інверсній польській нотації
         double result = 0;
         double op1, op2;
         string op;
@@ -73,15 +86,17 @@ class Program
             if (double.TryParse(output[i], out op1))
             {
                 // Якщо токен - число, додаємо його до стеку
-                operators[operatorIndex++] = output[i];
+                stack[stackIndex++] = output[i];
             }
             else
             {
-                // Якщо токен - оператор, вилучаємо два операнди зі стеку та застосовуємо оператор до них
+                // Якщо токен оператор, вилучаємо два операнди зі стеку та застосовуємо оператор до них
                 op = output[i];
-                op2 = double.Parse(operators[--operatorIndex]);
-                op1 = double.Parse(operators[--operatorIndex]);
-
+                op2 = double.Parse(stack[--stackIndex]);
+                op1 = double.Parse(stack[--stackIndex]);
+                
+                
+                
                 switch (op)
                 {
                     case "+":
@@ -96,13 +111,16 @@ class Program
                     case "/":
                         result = op1 / op2;
                         break;
+                    case "^":
+                        result = Math.Pow(op1, op2);
+                        break;
                     default:
                         Console.WriteLine($"Невідомий оператор: {op}");
                         return;
                 }
 
                 // Додаємо результат до стеку
-                operators[operatorIndex++] = result.ToString();
+                stack[stackIndex++] = result.ToString();
             }
         }
 
